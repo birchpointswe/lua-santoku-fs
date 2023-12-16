@@ -300,6 +300,10 @@ M.writefile = function (fp, str, flag)
     return false, err
   else
     fh:write(str)
+    fh:flush()
+    if fh ~= io.stdout then
+      fh:close()
+    end
     return true
   end
 end
@@ -318,7 +322,9 @@ M.readfile = function (fp, flag)
     return false, err
   else
     local content = fh:read("*all")
-    fh:close()
+    if fh ~= io.stdin then
+      fh:close()
+    end
     return true, content
   end
 end
