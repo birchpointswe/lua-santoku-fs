@@ -17,6 +17,7 @@ int tk_fs_posix_err (lua_State *L, int err)
 
 int tk_fs_posix_dir_closure (lua_State *L)
 {
+  luaL_checktype(L, lua_upvalueindex(1), LUA_TLIGHTUSERDATA);
   DIR *d = (DIR *) lua_touserdata(L, lua_upvalueindex(1));
   struct dirent *entry = readdir(d);
   if (entry != NULL) {
