@@ -10,11 +10,14 @@ local tup = require("santoku.tuple")
 local fun = require("santoku.fun")
 local vec = require("santoku.vector")
 
-local unistd = require("posix.unistd")
-local dirent = require("posix.dirent")
-local stat = require("posix.sys.stat")
+local posix = require("santoku.fs.posix")
 
 local M = {}
+
+M.mkdir = posix.mkdir
+M.mode = posix.mode
+M.rmdir = posix.rmdir
+M.cwd = posix.getcwd
 
 M.mkdirp = function (dir)
   local p0 = str.startswith(dir, M.pathdelim) and M.pathdelim or nil
@@ -23,44 +26,12 @@ M.mkdirp = function (dir)
       p1 = M.join(p0, p1)
     end
     p0 = p1
-    local ok, err, code = stat.mkdir(p1)
+    local ok, err, code = M.mkdir(p1)
     if not ok and code ~= 17 then
       return ok, err, code
     end
   end
   return true
-end
-
-M.stat = function (fp)
-  local st, err, cd = stat.stat(fp)
-  if not st then
-    return false, err, cd
-  else
-    return true, st
-  end
-end
-
-M.mode = function (fp)
-  local ok, st, cd = M.stat(fp)
-  if not ok then
-    return false, st, cd
-  elseif stat.S_ISBLK(st.st_mode) ~= 0 then
-    return true, "block"
-  elseif stat.S_ISCHR(st.st_mode) ~= 0 then
-    return true, "character"
-  elseif stat.S_ISDIR(st.st_mode) ~= 0 then
-    return true, "directory"
-  elseif stat.S_ISFIFO(st.st_mode) ~= 0 then
-    return true, "fifo"
-  elseif stat.S_ISLNK(st.st_mode) ~= 0 then
-    return true, "link"
-  elseif stat.S_ISREG(st.st_mode) ~= 0 then
-    return true, "file"
-  elseif stat.S_ISSOCK(st.st_mode) ~= 0 then
-    return true, "socket"
-  else
-    return false, "unknown mode", st.st_mode
-  end
 end
 
 M.isdir = function (fp)
@@ -93,11 +64,23 @@ M.exists = function (fp)
 end
 
 M.dir = function (dir)
-  local files, cd = dirent.dir(dir)
-  if not files then
-    return false, files, cd
+  local ok, entries, cd = posix.dir(dir)
+  if not ok then
+    return false, entries, cd
   else
-    return true, gen.ivals(files)
+    return true, gen(function (yield)
+      while true do
+        local ok, name, mode = entries()
+        if not ok then
+          yield(false, name, mode)
+          break
+        elseif ok and name then
+          yield(true, name, mode)
+        else
+          break
+        end
+      end
+    end)
   end
 end
 
@@ -114,26 +97,26 @@ M.walk = function (dir, opts)
     if not ok then
       return each(false, entries, cd)
     else
-      return entries:each(function (it)
-        if it ~= M.dirparent and it ~= M.dirthis then
-          it = M.join(dir, it)
-          local ok, mode, code = M.mode(it)
-          if not ok then
-            return each(false, mode, code)
-          elseif mode == "directory" then
-            if not prune(it, mode) then
+      return entries:each(function (ok, name, mode)
+        if not ok then
+          return each(false, name, mode)
+        end
+        if name ~= M.dirparent and name ~= M.dirthis then
+          name = M.join(dir, name)
+          if mode == "directory" then
+            if not prune(name, mode) then
               if not leaves then
-                each(true, it, mode)
-                return M.walk(it, opts):each(each)
+                each(true, name, mode)
+                return M.walk(name, opts):each(each)
               else
-                M.walk(it, opts):each(each)
-                return each(true, it, mode)
+                M.walk(name, opts):each(each)
+                return each(true, name, mode)
               end
             elseif prunekeep then
-              return each(true, it, mode)
+              return each(true, name, mode)
             end
           else
-            return each(true, it, mode)
+            return each(true, name, mode)
           end
         end
       end)
@@ -347,15 +330,6 @@ M.mv = function (old, new)
   end
 end
 
-M.rmdir = function (dir)
-  local ok, err, code = unistd.rmdir(dir)
-  if ok == nil then
-    return false, err, code
-  else
-    return true
-  end
-end
-
 M.rmdirs = function (dir)
   return err.pwrap(function (check)
     M.dirs(dir, { recurse = true, leaves = true })
@@ -363,15 +337,6 @@ M.rmdirs = function (dir)
       :map(M.rmdir)
       :each(check)
   end)
-end
-
-M.cwd = function ()
-  local dir, err, cd = unistd.getcwd()
-  if not dir then
-    return false, err, cd
-  else
-    return true, dir
-  end
 end
 
 M.absolute = function (fp)
