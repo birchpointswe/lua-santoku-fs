@@ -134,4 +134,10 @@ test("fs", function ()
 
   end)
 
+  test("isdir", function ()
+    assert.same({ true, true }, { fs.isdir("spec") })
+    assert.same({ true, false }, { fs.isdir("spec-doesnt-exist") })
+    assert.same({ true, false }, { fs.isdir("run.sh") })
+  end)
+
 end)

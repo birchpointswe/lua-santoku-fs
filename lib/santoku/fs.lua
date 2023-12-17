@@ -36,7 +36,9 @@ end
 
 M.isdir = function (fp)
   local ok, mode, cd = M.mode(fp)
-  if not ok then
+  if not ok and cd == 2 then
+    return true, false
+  elseif not ok then
     return false, mode, cd
   else
     return true, mode == "directory"
