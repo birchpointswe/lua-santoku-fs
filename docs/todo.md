@@ -1,4 +1,3 @@
 # Now
 
-- Rewrite in pure lua
-- Handle assert failure cases, etc
+- Allow permission setting and custom modes

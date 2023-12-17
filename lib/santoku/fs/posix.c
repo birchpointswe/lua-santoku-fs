@@ -84,7 +84,7 @@ int tk_fs_posix_rmdir (lua_State *L)
 int tk_fs_posix_mkdir (lua_State *L)
 {
 	const char *path = luaL_checkstring(L, 1);
-  int rc = mkdir(path, umask(0));
+  int rc = mkdir(path, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   if (rc == -1)
     return tk_fs_posix_err(L, errno);
   lua_pushboolean(L, 1);
