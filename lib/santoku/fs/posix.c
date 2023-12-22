@@ -91,7 +91,7 @@ int tk_fs_posix_mkdir (lua_State *L)
   return 1;
 }
 
-int tk_fs_posix_getcwd (lua_State *L)
+int tk_fs_posix_cwd (lua_State *L)
 {
   char cwd[PATH_MAX];
   if (getcwd(cwd, PATH_MAX) == NULL)
@@ -99,6 +99,15 @@ int tk_fs_posix_getcwd (lua_State *L)
   lua_pushboolean(L, 1);
   lua_pushstring(L, cwd);
   return 2;
+}
+
+int tk_fs_posix_cd (lua_State *L)
+{
+	const char *path = luaL_checkstring(L, 1);
+  if (chdir(path) == -1)
+    return tk_fs_posix_err(L, errno);
+  lua_pushboolean(L, 1);
+  return 1;
 }
 
 int tk_fs_posix_mode (lua_State *L)
@@ -136,7 +145,8 @@ luaL_Reg tk_fs_posix_fns[] =
   { "dir", tk_fs_posix_dir },
   { "mode", tk_fs_posix_mode },
   { "mkdir", tk_fs_posix_mkdir },
-  { "getcwd", tk_fs_posix_getcwd },
+  { "cwd", tk_fs_posix_cwd },
+  { "cd", tk_fs_posix_cd },
   { NULL, NULL }
 };
 
