@@ -19,6 +19,7 @@ M.mode = posix.mode
 M.rmdir = posix.rmdir
 M.cwd = posix.cwd
 M.cd = posix.cd
+M.touch = posix.touch
 
 M.mkdirp = function (dir)
   local p0 = str.startswith(dir, M.pathdelim) and M.pathdelim or nil

@@ -1,20 +1,19 @@
 local env = {
 
   name = "santoku-fs",
-  version = "0.0.9-1",
+  version = "0.0.10-1",
   variable_prefix = "TK_FS",
   license = "MIT",
   public = true,
 
   dependencies = {
     "lua >= 5.1",
-    "santoku >= 0.0.148-1",
+    "santoku >= 0.0.153-1",
   },
 
   test_dependencies = {
-    "santoku-test >= 0.0.4-1",
+    "santoku-test >= 0.0.5-1",
     "luassert >= 1.9.0-1",
-    "luacheck >= 1.1.0-1",
     "luacov >= 0.15.0-1",
   },
 

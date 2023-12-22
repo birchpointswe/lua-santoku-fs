@@ -5,7 +5,10 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <utime.h>
 
 int tk_fs_posix_err (lua_State *L, int err)
 {
@@ -101,6 +104,21 @@ int tk_fs_posix_cwd (lua_State *L)
   return 2;
 }
 
+int tk_fs_posix_touch (lua_State *L)
+{
+	const char *path = luaL_checkstring(L, 1);
+  int fd = open(path, O_WRONLY|O_NONBLOCK|O_CREAT|O_NOCTTY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  if (fd == -1)
+    return tk_fs_posix_err(L, errno);
+  if (close(fd) == -1)
+    return tk_fs_posix_err(L, errno);
+  int rc = utimes(path, NULL);
+  if (rc == -1)
+    return tk_fs_posix_err(L, errno);
+  lua_pushboolean(L, 1);
+  return 1;
+}
+
 int tk_fs_posix_cd (lua_State *L)
 {
 	const char *path = luaL_checkstring(L, 1);
@@ -147,6 +165,7 @@ luaL_Reg tk_fs_posix_fns[] =
   { "mkdir", tk_fs_posix_mkdir },
   { "cwd", tk_fs_posix_cwd },
   { "cd", tk_fs_posix_cd },
+  { "touch", tk_fs_posix_touch },
   { NULL, NULL }
 };
 
