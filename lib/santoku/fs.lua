@@ -17,7 +17,7 @@ local M = {}
 M.mkdir = posix.mkdir
 M.mode = posix.mode
 M.rmdir = posix.rmdir
-M.cwd = posix.getcwd
+M.cwd = posix.cwd
 M.cd = posix.cd
 
 M.mkdirp = function (dir)
