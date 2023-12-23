@@ -18,6 +18,7 @@ int tk_fs_posix_err (lua_State *L, int err)
   return 3;
 }
 
+
 int tk_fs_posix_dir_closure (lua_State *L)
 {
   luaL_checktype(L, lua_upvalueindex(1), LUA_TLIGHTUSERDATA);
