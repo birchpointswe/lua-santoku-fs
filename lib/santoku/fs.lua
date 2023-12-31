@@ -21,6 +21,11 @@ M.cwd = posix.cwd
 M.cd = posix.cd
 M.touch = posix.touch
 
+
+local function errno_noexist (code)
+  return (code == 2 or code == 44)
+end
+
 M.mkdirp = function (dir)
   local p0 = str.startswith(dir, M.pathdelim) and M.pathdelim or nil
   for p1 in dir:gmatch("([^" .. str.escape(M.pathdelim) .. "]+)/?") do
@@ -38,7 +43,7 @@ end
 
 M.isdir = function (fp)
   local ok, mode, cd = M.mode(fp)
-  if not ok and cd == 2 then
+  if not ok and errno_noexist(cd) then
     return true, false
   elseif not ok then
     return false, mode, cd
@@ -58,12 +63,12 @@ end
 
 M.exists = function (fp)
   local ok, mode, code = M.mode(fp)
-  if not ok and code == 2 then
+  if not ok and errno_noexist(code) then
     return true, false
   elseif ok then
     return true, true, mode
   else
-    return false, err, code
+    return false, mode, code
   end
 end
 
@@ -318,7 +323,7 @@ end
 
 M.rm = function (fp, allow_noexist)
   local ok, err, cd = os.remove(fp)
-  if not ok and (not allow_noexist and cd == 2) then
+  if not ok and (not allow_noexist and errno_noexist(cd)) then
     return false, err, cd
   else
     return true

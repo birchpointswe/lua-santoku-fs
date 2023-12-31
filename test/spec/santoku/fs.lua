@@ -12,9 +12,9 @@ test("fs", function ()
 
     test("should return the correct number of lines", function ()
 
-      local fp = "res/fs.tst1.txt"
+      local fp = "test/res/fs.tst1.txt"
       local ok, gen = fs.lines(fp)
-      assert(ok)
+      assert(ok, gen)
 
       local a, b, c, d = gen:unpack()
 
@@ -84,12 +84,12 @@ test("fs", function ()
 
     test("should list directory files", function ()
       local files = vec(
-        "res/fs/a/a.txt",
-        "res/fs/b/a.txt",
-        "res/fs/a/b.txt",
-        "res/fs/b/b.txt")
+        "test/res/fs/a/a.txt",
+        "test/res/fs/b/a.txt",
+        "test/res/fs/a/b.txt",
+        "test/res/fs/b/b.txt")
       local i = 0
-      fs.files("res/fs", { recurse = true })
+      fs.files("test/res/fs", { recurse = true })
         :each(function (ok, fp, mode)
           assert(ok, fp)
           assert(files:find(fun.bindr(op.eq, fp)))
@@ -102,8 +102,8 @@ test("fs", function ()
   end)
 
   test("exists", function ()
-    assert.same({ true, true, "directory" }, { fs.exists("spec") } )
-    assert.same({ true, false }, { fs.exists("spec__doesntexist") } )
+    assert.same({ true, true, "directory" }, { fs.exists("test/spec") } )
+    assert.same({ true, false }, { fs.exists("test/spec__doesntexist") } )
   end)
 
   test("splitexts", function ()
@@ -135,8 +135,8 @@ test("fs", function ()
   end)
 
   test("isdir", function ()
-    assert.same({ true, true }, { fs.isdir("spec") })
-    assert.same({ true, false }, { fs.isdir("spec-doesnt-exist") })
+    assert.same({ true, true }, { fs.isdir("test/spec") })
+    assert.same({ true, false }, { fs.isdir("test/spec-doesnt-exist") })
     assert.same({ true, false }, { fs.isdir("run.sh") })
   end)
 

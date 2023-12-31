@@ -133,6 +133,7 @@ int tk_fs_posix_mode (lua_State *L)
 {
 	const char *path = luaL_checkstring(L, 1);
   struct stat statbuf;
+  errno = 0;
   int rc = stat(path, &statbuf);
   if (rc == -1)
     return tk_fs_posix_err(L, errno);
