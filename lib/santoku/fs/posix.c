@@ -175,5 +175,7 @@ int luaopen_santoku_fs_posix (lua_State *L)
 {
   lua_newtable(L);
   luaL_register(L, NULL, tk_fs_posix_fns);
+  lua_pushinteger(L, ENOENT); lua_setfield(L, -2, "ENOENT");
+  lua_pushinteger(L, EEXIST); lua_setfield(L, -2, "EEXIST");
   return 1;
 }

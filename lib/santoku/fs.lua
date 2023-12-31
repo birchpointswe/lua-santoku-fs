@@ -14,16 +14,8 @@ local posix = require("santoku.fs.posix")
 
 local M = {}
 
-M.mkdir = posix.mkdir
-M.mode = posix.mode
-M.rmdir = posix.rmdir
-M.cwd = posix.cwd
-M.cd = posix.cd
-M.touch = posix.touch
-
-
-local function errno_noexist (code)
-  return (code == 2 or code == 44)
+for k, v in pairs(posix) do
+  M[k] = v
 end
 
 M.mkdirp = function (dir)
@@ -34,7 +26,7 @@ M.mkdirp = function (dir)
     end
     p0 = p1
     local ok, err, code = M.mkdir(p1)
-    if not ok and code ~= 17 then
+    if not ok and code ~= M.EEXIST then
       return ok, err, code
     end
   end
@@ -43,7 +35,7 @@ end
 
 M.isdir = function (fp)
   local ok, mode, cd = M.mode(fp)
-  if not ok and errno_noexist(cd) then
+  if not ok and cd == M.ENOENT then
     return true, false
   elseif not ok then
     return false, mode, cd
@@ -63,7 +55,7 @@ end
 
 M.exists = function (fp)
   local ok, mode, code = M.mode(fp)
-  if not ok and errno_noexist(code) then
+  if not ok and code == M.ENOENT then
     return true, false
   elseif ok then
     return true, true, mode
@@ -323,7 +315,7 @@ end
 
 M.rm = function (fp, allow_noexist)
   local ok, err, cd = os.remove(fp)
-  if not ok and (not allow_noexist and errno_noexist(cd)) then
+  if not ok and (not allow_noexist and cd == M.ENOENT) then
     return false, err, cd
   else
     return true
