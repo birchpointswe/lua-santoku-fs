@@ -4,7 +4,7 @@
 local compat = require("santoku.compat")
 local inherit = require("santoku.inherit")
 local str = require("santoku.string")
-local err = require("santoku.err")
+local check = require("santoku.check")
 local gen = require("santoku.gen")
 local tup = require("santoku.tuple")
 local fun = require("santoku.fun")
@@ -323,16 +323,16 @@ M.rm = function (fp, allow_noexist)
 end
 
 M.mv = function (old, new)
-  local ok, err, cd = os.rename(old, new)
-  if not ok then
-    return false, err, cd
+  local ret = tup(os.rename(old, new))
+  if not ret() then
+    return false, tup.sel(2, ret())
   else
     return true
   end
 end
 
 M.rmdirs = function (dir)
-  return err.pwrap(function (check)
+  return check:wrap(function (check)
     M.dirs(dir, { recurse = true, leaves = true })
       :map(check)
       :map(M.rmdir)
@@ -384,21 +384,21 @@ M.normalize = function (fp)
 end
 
 M.loadfile = function (fp, env)
-  local ok, data, cd = M.readfile(fp)
-  if not ok then
-    return false, data, cd
+  local ret = tup(M.readfile(fp))
+  if not ret() then
+    return ret()
   else
-    return compat.load(data, env)
+    return compat.load(tup.sel(2, ret()), env)
   end
 end
 
 M.runfile = function (fp, env)
   local lenv = inherit.pushindex(env or {}, _G)
-  local ok, fn, cd = M.loadfile(fp, lenv)
-  if not ok then
-    return false, fn, cd
+  local ret = tup(M.loadfile(fp, lenv))
+  if not ret() then
+    return ret()
   else
-    return pcall(fn)
+    return pcall((tup.sel(2, ret())))
   end
 end
 
