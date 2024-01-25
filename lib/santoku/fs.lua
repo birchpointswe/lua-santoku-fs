@@ -313,6 +313,15 @@ M.readfile = function (fp, flag)
   end
 end
 
+M.tmpfile = function ()
+  local fp, err = os.tmpname()
+  if not fp then
+    return false, err
+  else
+    return true, fp
+  end
+end
+
 M.rm = function (fp, allow_noexist)
   local ok, err, cd = os.remove(fp)
   if not ok and (not allow_noexist and cd == M.ENOENT) then
