@@ -330,7 +330,7 @@ local function mkdirp (fp)
   for str, s, e in splitparts(fp, "right") do
     s0 = s0 or s
     local dir = ssub(str, s0, e)
-    local ok, err, cd = pcall(mkdir(s0))
+    local ok, err, cd = pcall(mkdir, s0)
     if not ok and cd ~= EEXIST then
       error(err, cd, dir)
     end
