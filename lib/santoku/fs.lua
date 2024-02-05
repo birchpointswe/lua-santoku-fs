@@ -5,7 +5,7 @@ local pcall = err.pcall
 local assert = err.assert
 
 local lua = require("santoku.lua")
-local load = lua.load
+local loadstring = lua.loadstring
 
 local inherit = require("santoku.inherit")
 local pushindex = inherit.pushindex
@@ -374,10 +374,10 @@ local function writefile (fp, str, flag)
   flag = flag or "w"
   assert(isstring(flag))
   local fh = fp == _stdout and _stdout or open(fp, flag)
-  write(fh, str)
+  fh:write(str)
   _flush(fh)
   if fh ~= _stdout then
-    close(fh)
+    fh:close()
   end
 end
 
@@ -387,15 +387,15 @@ local function readfile (fp, flag)
   flag = flag or "r"
   assert(isstring(flag))
   local fh = fp == _stdin and _stdin or open(fp, flag)
-  local content = read(fp, "*all")
+  local content = fh:read("*all")
   if fh ~= _stdin then
-    close(fh)
+    fh:close()
   end
   return content
 end
 
 local function loadfile (fp, env)
-  return load(readfile(fp), env)
+  return loadstring(readfile(fp), env)
 end
 
 local function runfile (fp, env, nog)

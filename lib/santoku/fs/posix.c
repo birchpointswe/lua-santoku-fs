@@ -277,7 +277,9 @@ int tk_fs_posix_touch (lua_State *L)
 {
   lua_settop(L, 1);
 	const char *path = luaL_checkstring(L, 1);
-  int fd = open(path, O_WRONLY|O_NONBLOCK|O_CREAT|O_NOCTTY, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  int fd = open(path,
+      O_WRONLY | O_NONBLOCK | O_CREAT | O_NOCTTY,
+      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
   if (fd == -1)
     return tk_fs_posix_err(L, errno);
   if (close(fd) == -1)

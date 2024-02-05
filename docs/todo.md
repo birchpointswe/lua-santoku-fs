@@ -1,11 +1,15 @@
 # Now
 
 - Catch errors and close handles for file and directory operations
-- allow file handles or file paths for most functions that operate on files
-- mkdir, touch, writefile set mode
-- fchunks allow pattern for delim
+- Allow file handles or file paths for most functions that operate on files
+- Allow iterator as input for writefile
 
 # Later
 
-- Potential optimization for fs.chunk with delims: instead of rewinding the
-  file, copy the chunk tail to the new chunk
+- Custom modes for touch, mkdir, writefile
+- Add chmod, chown
+
+- Allow Lua pattern for delim
+
+- Potential optimization for fs.chunk with delims
+    - Instead of rewinding the file, copy the chunk tail to the new chunk
