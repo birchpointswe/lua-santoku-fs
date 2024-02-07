@@ -55,6 +55,8 @@ local _stdin = io.stdin
 local _tmpname = os.tmpname
 
 local posix = require("santoku.fs.posix")
+local chdir = posix.cd
+local cwd = posix.cwd
 local ENOENT = posix.ENOENT
 local EEXIST = posix.EEXIST
 local mkdir = posix.mkdir
@@ -406,6 +408,21 @@ local function runfile (fp, env, nog)
   return loadfile(fp, lenv)()
 end
 
+local function pushd (fp, fn, ...)
+  assert(isstring(fp))
+  assert(hascall(fn))
+  local cwd = cwd()
+  chdir(fp)
+  return vtup(function (ok, ...)
+    chdir(cwd)
+    if not ok then
+      error(...)
+    else
+      return ...
+    end
+  end, pcall(fn, ...))
+end
+
 return tassign({}, posix, {
   open = open,
   close = close,
@@ -443,4 +460,5 @@ return tassign({}, posix, {
   walk = walk,
   files = files,
   dirs = dirs,
+  pushd = pushd,
 })
