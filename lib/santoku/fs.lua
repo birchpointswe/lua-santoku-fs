@@ -371,7 +371,6 @@ end
 
 
 local function writefile (fp, str, flag)
-  assert(isstring(fp))
   assert(isstring(str))
   flag = flag or "w"
   assert(isstring(flag))
@@ -385,7 +384,6 @@ end
 
 
 local function readfile (fp, flag)
-  assert(isstring(fp))
   flag = flag or "r"
   assert(isstring(flag))
   local fh = fp == _stdin and _stdin or open(fp, flag)
