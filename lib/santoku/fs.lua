@@ -1,5 +1,7 @@
 local err = require("santoku.error")
 local wrapnil = err.wrapnil
+local checknil = err.checknil
+local checkok = err.checkok
 local error = err.error
 local pcall = err.pcall
 local assert = err.assert
@@ -18,6 +20,7 @@ local ge = validate.ge
 local isstring = validate.isstring
 local isboolean = validate.isboolean
 local isnumber = validate.isnumber
+local isfile = validate.isfile
 
 local str = require("santoku.string")
 local ssplit = str.split
@@ -44,15 +47,11 @@ local varg = require("santoku.varg")
 local vreduce = varg.reduce
 local vtup = varg.tup
 
-local _open = io.open
-local _close = io.close
-local _read = io.read
-local _write = io.write
-local _flush = io.flush
-local _stdout = io.stdout
-local _stderr = io.stderr
-local _stdin = io.stdin
-local _tmpname = os.tmpname
+local _open = wrapnil(io.open)
+local stdout = io.stdout
+local stderr = io.stderr
+local stdin = io.stdin
+local tmpname = wrapnil(os.tmpname)
 
 local posix = require("santoku.fs.posix")
 local chdir = posix.cd
@@ -66,27 +65,86 @@ local diropen = posix.diropen
 local dirent = posix.dirent
 local next_chunk = posix.next_chunk
 
-local tmpname = wrapnil(_tmpname)
-local open = wrapnil(_open)
-local close = _close
-local read = wrapnil(_read)
-local write = wrapnil(_write)
-
-
-local function chunks (handle, delims, size, omit)
-  local chunk, ss, se, ds, de
-  return function ()
-    chunk, ss, se, ds, de = next_chunk(handle, delims, size, chunk, ss, se, ds, de)
-    if chunk then
-      return chunk, ss, omit and se or de
-    else
-      close(handle)
+local function open (fpfh, flag)
+  if isfile(fpfh) then
+    return fpfh, true
+  else
+    assert(isstring(fpfh))
+    if flag ~= nil then
+      assert(isstring(flag))
     end
+    return _open(fpfh, flag), false
   end
 end
 
-local function lines (handle, size)
-  return chunks(handle, "\r\n", size, true)
+local function read (fh, ...)
+  assert(isfile(fh))
+  return checknil(fh:read(...))
+end
+
+local function write (fh, ...)
+  assert(isfile(fh))
+  return checkok(fh:write(...))
+end
+
+local function close (fh, ...)
+  assert(isfile(fh))
+  return checkok(fh:close(...))
+end
+
+local function flush (fh, ...)
+  assert(isfile(fh))
+  return checkok(fh:flush(...))
+end
+
+local function seek (fh, ...)
+  assert(isfile(fh))
+  return checknil(fh:seek(...))
+end
+
+local function setvbuf (fh, ...)
+  assert(isfile(fh))
+  return checkok(fh:setvbuf(...))
+end
+
+local function with (fp, flag, fn, ...)
+  local fh, was_open = open(fp, flag)
+  return vtup(function (ok, ...)
+    if not was_open then
+      close(fh)
+    end
+    if not ok then
+      error(...)
+    else
+      return ...
+    end
+  end, pcall(fn, fh, ...))
+end
+
+local function chunks (fp, delims, size, omit)
+  local fh, was_open = open(fp, "r")
+  local chunk, ss, se, ds, de
+  return function ()
+    return vtup(function (ok, ...)
+      if not ok then
+        if not was_open then
+          close(fh)
+        end
+        error(...)
+      else
+        chunk, ss, se, ds, de = ...
+        if chunk then
+          return chunk, ss, omit and se or de
+        elseif not was_open then
+          close(fh)
+        end
+      end
+    end, pcall(next_chunk, fh, delims, size, chunk, ss, se, ds, de))
+  end
+end
+
+local function lines (fp, size)
+  return chunks(fp, "\r\n", size, true)
 end
 
 local function join (...)
@@ -202,6 +260,7 @@ local function stripparts (fp, n, keep_sep)
 end
 
 local function dir (fp)
+  assert(isstring(fp))
   local d = diropen(fp)
   return function ()
     local f, m = dirent(d)
@@ -368,30 +427,17 @@ local function rmdirs (dir)
 end
 
 
-
-
 local function writefile (fp, str, flag)
-  assert(isstring(str))
-  flag = flag or "w"
-  assert(isstring(flag))
-  local fh = fp == _stdout and _stdout or open(fp, flag)
-  fh:write(str)
-  _flush(fh)
-  if fh ~= _stdout then
-    fh:close()
-  end
+  return with(fp, flag or "w", function (fh)
+    write(fh, str)
+    flush(fh)
+  end)
 end
 
-
 local function readfile (fp, flag)
-  flag = flag or "r"
-  assert(isstring(flag))
-  local fh = fp == _stdin and _stdin or open(fp, flag)
-  local content = fh:read("*all")
-  if fh ~= _stdin then
-    fh:close()
-  end
-  return content
+  return with(fp, flag or "r", function (fh)
+    return read(fh, "*all")
+  end)
 end
 
 local function loadfile (fp, env)
@@ -399,7 +445,6 @@ local function loadfile (fp, env)
 end
 
 local function runfile (fp, env, nog)
-  assert(isstring(fp))
   env = env or {}
   assert(hascall(env) or hasindex(env))
   local lenv = nog and env or pushindex(env, _G)
@@ -426,10 +471,12 @@ return tassign({}, posix, {
   close = close,
   read = read,
   write = write,
-  flush = _flush,
-  stdout = _stdout,
-  stderr = _stderr,
-  stdin = _stdin,
+  seek = seek,
+  setvbuf = setvbuf,
+  flush = flush,
+  stdout = stdout,
+  stderr = stderr,
+  stdin = stdin,
   exists = exists,
   mkdirp = mkdirp,
   rm = rm,

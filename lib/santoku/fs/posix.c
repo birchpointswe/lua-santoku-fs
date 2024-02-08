@@ -195,6 +195,7 @@ int tk_fs_posix_next_chunk (lua_State *L)
       size_t total_read = 0;
 
       while (1) {
+
         char *bufmem = luaL_prepbuffer(&buf);
         size_t chunk_left = chunk_max - total_read;
         size_t read_size = chunk_left > LUAL_BUFFERSIZE ? LUAL_BUFFERSIZE : chunk_left;

@@ -27,6 +27,7 @@ local imap = iter.map
 
 local str = require("santoku.string")
 local ssub = str.sub
+local scmp = str.compare
 
 test("chunk basic", function ()
   assert(teq({ "line 1\nl", "ine 2\nli", "ne 3\nlin", "e 4\n" },
@@ -50,7 +51,7 @@ end)
 
 test("lines", function ()
   assert(teq({ "line 1", "line 2", "line 3", "line 4" },
-    icollect(imap(ssub, flines(fopen("test/res/fs.tst1.txt"))))))
+    icollect(imap(ssub, flines((fopen("test/res/fs.tst1.txt")))))))
 end)
 
 test("join", function ()
@@ -148,12 +149,14 @@ test("dir", function ()
 end)
 
 test("walk", function ()
-  assert(teq(icollect(imap(apack, fs.walk("test/res"))), {
+  assert(teq(asort(icollect(imap(apack, fs.walk("test/res"))), function (a, b)
+    return scmp(a[1], b[1])
+  end), {
     { "test/res/fs", "directory" },
     { "test/res/fs/a", "directory" },
+    { "test/res/fs/b", "directory" },
     { "test/res/fs/a/a.txt", "file" },
     { "test/res/fs/a/b.txt", "file" },
-    { "test/res/fs/b", "directory" },
     { "test/res/fs/b/a.txt", "file" },
     { "test/res/fs/b/b.txt", "file" },
     { "test/res/fs.tst1.txt", "file" },
@@ -163,7 +166,7 @@ test("walk", function ()
 end)
 
 test("files", function ()
-  assert(teq(icollect(fs.files("test/res", true)), {
+  assert(teq(asort(icollect(fs.files("test/res", true)), scmp), {
     "test/res/fs/a/a.txt",
     "test/res/fs/a/b.txt",
     "test/res/fs/b/a.txt",
@@ -172,7 +175,7 @@ test("files", function ()
     "test/res/fs.tst2.txt",
     "test/res/fs.tst3.txt",
   }))
-  assert(teq(icollect(fs.files("test/res", false)), {
+  assert(teq(asort(icollect(fs.files("test/res", false)), scmp), {
     "test/res/fs.tst1.txt",
     "test/res/fs.tst2.txt",
     "test/res/fs.tst3.txt",
