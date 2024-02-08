@@ -466,7 +466,7 @@ local function pushd (fp, fn, ...)
   end, pcall(fn, ...))
 end
 
-return tassign({}, posix, {
+return tassign({
   open = open,
   close = close,
   read = read,
@@ -506,4 +506,4 @@ return tassign({}, posix, {
   files = files,
   dirs = dirs,
   pushd = pushd,
-})
+}, posix, false)
