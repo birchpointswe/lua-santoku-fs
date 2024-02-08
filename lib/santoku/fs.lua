@@ -467,6 +467,7 @@ local function pushd (fp, fn, ...)
 end
 
 return tassign({
+  with = with,
   open = open,
   close = close,
   read = read,
