@@ -4,7 +4,7 @@ local checknil = err.checknil
 local checkok = err.checkok
 local error = err.error
 local pcall = err.pcall
-local assert = err.assert
+
 
 local lua = require("santoku.lua")
 local loadstring = lua.loadstring
@@ -13,17 +13,17 @@ local inherit = require("santoku.inherit")
 local pushindex = inherit.pushindex
 
 local validate = require("santoku.validate")
-local hasargs = validate.hasargs
-local hascall = validate.hascall
-local hasindex = validate.hasindex
-local ge = validate.ge
-local isstring = validate.isstring
-local isboolean = validate.isboolean
-local isnumber = validate.isnumber
 local isfile = validate.isfile
 
+
+
+
+
+
+
+
 local str = require("santoku.string")
-local ssplit = str.split
+local ssplit = str.splits
 local ssub = str.sub
 local sfind = str.find
 
@@ -31,7 +31,7 @@ local fun = require("santoku.functional")
 local noop = fun.noop
 
 local tbl = require("santoku.table")
-local tassign = tbl.assign
+local tmerge = tbl.merge
 
 local iter = require("santoku.iter")
 local idrop = iter.drop
@@ -52,6 +52,7 @@ local stdout = io.stdout
 local stderr = io.stderr
 local stdin = io.stdin
 local tmpname = wrapnil(os.tmpname)
+local rename = wrapnil(os.rename)
 
 local posix = require("santoku.fs.posix")
 local chdir = posix.cd
@@ -69,41 +70,41 @@ local function open (fpfh, flag)
   if isfile(fpfh) then
     return fpfh, true
   else
-    assert(isstring(fpfh))
-    if flag ~= nil then
-      assert(isstring(flag))
-    end
+
+
+
+
     return _open(fpfh, flag), false
   end
 end
 
 local function read (fh, ...)
-  assert(isfile(fh))
+
   return checknil(fh:read(...))
 end
 
 local function write (fh, ...)
-  assert(isfile(fh))
+
   return checkok(fh:write(...))
 end
 
 local function close (fh, ...)
-  assert(isfile(fh))
+
   return checkok(fh:close(...))
 end
 
 local function flush (fh, ...)
-  assert(isfile(fh))
+
   return checkok(fh:flush(...))
 end
 
 local function seek (fh, ...)
-  assert(isfile(fh))
+
   return checknil(fh:seek(...))
 end
 
 local function setvbuf (fh, ...)
-  assert(isfile(fh))
+
   return checkok(fh:setvbuf(...))
 end
 
@@ -148,10 +149,10 @@ local function lines (fp, size)
 end
 
 local function join (...)
-  assert(hasargs(...))
+
   local hastrailing = false
   return acat(vreduce(function (a, n)
-    assert(isstring(n))
+
     if not a[1] then
       a[1] = n
     elseif hastrailing or sfind(n, "^/") then
@@ -166,7 +167,7 @@ local function join (...)
 end
 
 local function dirname (fp)
-  assert(isstring(fp))
+
   local s, e = sfind(fp, "^.*/")
   if not s then
     return "."
@@ -176,7 +177,7 @@ local function dirname (fp)
 end
 
 local function basename (fp)
-  assert(isstring(fp))
+
   local s, e = sfind(fp, "^.*/")
   if not s then
     return fp
@@ -188,7 +189,7 @@ local function basename (fp)
 end
 
 local function extension (fp, all)
-  assert(isstring(fp))
+
   local s, e = sfind(fp, "^.*/")
   e = s and e + 1 or 1
   s, e = sfind(fp, all and "%..*$" or "%.[^.]*$", e)
@@ -196,12 +197,12 @@ local function extension (fp, all)
 end
 
 local function extensions (fp)
-  assert(isstring(fp))
+
   return extension(fp, true)
 end
 
 local function stripextension (fp, all)
-  assert(isstring(fp))
+
   local s = sfind(fp, all and "%..*$" or "%.[^.]*$")
   if s then
     return ssub(fp, 1, s - 1)
@@ -211,7 +212,7 @@ local function stripextension (fp, all)
 end
 
 local function stripextensions (fp)
-  assert(isstring(fp))
+
   return stripextension(fp, true)
 end
 
@@ -220,12 +221,12 @@ local function _string_is_zero_len (_, s, e)
 end
 
 local function splitparts (fp, delim)
-  assert(isstring(fp))
+
   return ifilter(_string_is_zero_len, ssplit(fp, "/+", delim))
 end
 
 local function splitexts (fp, keep_dots)
-  assert(isstring(fp))
+
   local s = sfind(fp, "%..*$")
   if not s then
     return noop
@@ -235,9 +236,9 @@ local function splitexts (fp, keep_dots)
 end
 
 local function stripparts (fp, n, keep_sep)
-  assert(isstring(fp))
-  assert(isnumber(n))
-  assert(ge(n, 0))
+
+
+
   if n == 0 then
     return fp
   end
@@ -260,7 +261,7 @@ local function stripparts (fp, n, keep_sep)
 end
 
 local function dir (fp)
-  assert(isstring(fp))
+
   local d = diropen(fp)
   return function ()
     local f, m = dirent(d)
@@ -277,11 +278,11 @@ end
 
 local function walk (fp, prune, leaves)
 
-  assert(isstring(fp))
+
   prune = prune or noop
-  assert(hascall(prune))
+
   leaves = leaves or false
-  assert(isboolean(leaves))
+
 
   local names = { fp }
   local stack = { dir(fp) }
@@ -386,7 +387,7 @@ local function exists (fp)
 end
 
 local function mkdirp (fp)
-  assert(isstring(fp))
+
   local s0 = nil
   for str, s, e in splitparts(fp, "right") do
     s0 = s0 or s
@@ -399,9 +400,9 @@ local function mkdirp (fp)
 end
 
 local function rm (fp, allow_noexist)
-  assert(isstring(fp))
+
   allow_noexist = allow_noexist or false
-  assert(isboolean(allow_noexist))
+
   return vtup(function (ok, err, cd, ...)
     if not ok and (not allow_noexist and cd == ENOENT) then
       return error(err, cd, ...)
@@ -409,18 +410,8 @@ local function rm (fp, allow_noexist)
   end, os.remove(fp))
 end
 
-local function mv (old, new)
-  assert(isstring(old))
-  assert(isstring(new))
-  return vtup(function (ok, ...)
-    if not ok then
-      return error(...)
-    end
-  end)
-end
-
 local function rmdirs (dir)
-  assert(isstring(dir))
+
   for _, d in dirs(dir, true, true) do
     rmdir(d)
   end
@@ -446,14 +437,14 @@ end
 
 local function runfile (fp, env, nog)
   env = env or {}
-  assert(hascall(env) or hasindex(env))
+
   local lenv = nog and env or pushindex(env, _G)
   return loadfile(fp, lenv)()
 end
 
 local function pushd (fp, fn, ...)
-  assert(isstring(fp))
-  assert(hascall(fn))
+
+
   local cwd = cwd()
   chdir(fp)
   return vtup(function (ok, ...)
@@ -466,7 +457,7 @@ local function pushd (fp, fn, ...)
   end, pcall(fn, ...))
 end
 
-return tassign({
+return tmerge({
   with = with,
   open = open,
   close = close,
@@ -481,7 +472,7 @@ return tassign({
   exists = exists,
   mkdirp = mkdirp,
   rm = rm,
-  mv = mv,
+  mv = rename,
   rmdirs = rmdirs,
   writefile = writefile,
   readfile = readfile,
@@ -507,4 +498,4 @@ return tassign({
   files = files,
   dirs = dirs,
   pushd = pushd,
-}, posix, false)
+}, posix, io)
