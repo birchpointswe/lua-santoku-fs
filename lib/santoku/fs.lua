@@ -144,10 +144,6 @@ local function chunks (fp, delims, size, omit)
   end
 end
 
-local function lines (fp, size)
-  return chunks(fp, "\r\n", size, true)
-end
-
 local function join (...)
 
   local hastrailing = false
@@ -492,7 +488,6 @@ return tmerge({
   splitexts = splitexts,
   stripparts = stripparts,
   chunks = chunks,
-  lines = lines,
   dir = dir,
   walk = walk,
   files = files,

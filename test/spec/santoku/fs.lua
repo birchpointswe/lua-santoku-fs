@@ -18,7 +18,6 @@ local tbl = require("santoku.table")
 local teq = tbl.equals
 
 local fs = require("santoku.fs")
-local flines = fs.lines
 local fopen = fs.open
 
 local iter = require("santoku.iter")
@@ -47,11 +46,6 @@ end)
 test("chunk delim doesnt fit", function ()
   assert(teq({ false, "chunk doesn't fit", 0, 5},
     { pcall(icollect, fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 5)) }))
-end)
-
-test("lines", function ()
-  assert(teq({ "line 1", "line 2", "line 3", "line 4" },
-    icollect(imap(ssub, flines((fopen("test/res/fs.tst1.txt")))))))
 end)
 
 test("join", function ()
