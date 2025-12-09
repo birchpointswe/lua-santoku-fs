@@ -33,19 +33,8 @@ local noop = fun.noop
 local tbl = require("santoku.table")
 local tmerge = tbl.merge
 
-local iter = require("santoku.iter")
-local idrop = iter.drop
-local itail = iter.tail
-local ifilter = iter.filter
-local ifirst = iter.first
-local ilast = iter.last
-
 local arr = require("santoku.array")
 local acat = arr.concat
-
-local varg = require("santoku.varg")
-local vreduce = varg.reduce
-local vtup = varg.tup
 
 local _open = wrapnil(io.open)
 local stdout = io.stdout
@@ -110,7 +99,7 @@ end
 
 local function with (fp, flag, fn, ...)
   local fh, was_open = open(fp, flag)
-  return vtup(function (ok, ...)
+  return (function (ok, ...)
     if not was_open then
       close(fh)
     end
@@ -119,14 +108,14 @@ local function with (fp, flag, fn, ...)
     else
       return ...
     end
-  end, pcall(fn, fh, ...))
+  end)(pcall(fn, fh, ...))
 end
 
 local function chunks (fp, delims, size, omit)
   local fh, was_open = open(fp, "r")
   local chunk, ss, se, ds, de
   return function ()
-    return vtup(function (ok, ...)
+    return (function (ok, ...)
       if not ok then
         if not was_open then
           close(fh)
@@ -140,15 +129,15 @@ local function chunks (fp, delims, size, omit)
           close(fh)
         end
       end
-    end, pcall(next_chunk, fh, delims, size, chunk, ss, se, ds, de))
+    end)(pcall(next_chunk, fh, delims, size, chunk, ss, se, ds, de))
   end
 end
 
 local function join (...)
-
   local hastrailing = false
-  return acat(vreduce(function (a, n)
-
+  local a = {}
+  for i = 1, select("#", ...) do
+    local n = select(i, ...)
     if not a[1] then
       a[1] = n
     elseif hastrailing or sfind(n, "^/") then
@@ -158,8 +147,8 @@ local function join (...)
       a[#a + 1] = n
     end
     hastrailing = sfind(n, "/$")
-    return a
-  end, {}, ...))
+  end
+  return acat(a)
 end
 
 local function dirname (fp)
@@ -212,48 +201,60 @@ local function stripextensions (fp)
   return stripextension(fp, true)
 end
 
-local function _string_is_zero_len (_, s, e)
-  return e >= s
-end
-
 local function splitparts (fp, delim)
-
-  return ifilter(_string_is_zero_len, ssplit(fp, "/+", delim))
+  local parts = ssplit(fp, "/+", delim)
+  local i = 0
+  return function ()
+    while true do
+      i = i + 1
+      if i > #parts then return end
+      local str = parts[i]
+      if str ~= "" then
+        return str
+      end
+    end
+  end
 end
 
 local function splitexts (fp, keep_dots)
-
   local s = sfind(fp, "%..*$")
   if not s then
     return noop
-  else
-    return itail(ssplit(fp, "%.", keep_dots and "right" or false, s))
+  end
+  local parts = ssplit(fp, "%.", keep_dots and "right" or false, s)
+  local i = 1
+  return function ()
+    i = i + 1
+    if i > #parts then return nil end
+    return parts[i]
   end
 end
 
 local function stripparts (fp, n, keep_sep)
-
-
-
   if n == 0 then
     return fp
   end
-  return vtup(function (...)
-    local _, s0, e0 = ifirst(...)
-    local _, s1, e1 = ilast(...)
-    if s0 and not s1 then
-      return ssub(fp, s0, e0)
-    elseif s0 and e1 then
-      return ssub(fp, s0, e1)
+  local parts = ssplit(fp, "/+", keep_sep and "right" or "left")
+  local filtered = {}
+  for i = 1, #parts do
+    local str = parts[i]
+    if str ~= "" then
+      local s0 = sfind(str, "^/+$")
+      if not s0 then
+        filtered[#filtered + 1] = str
+      elseif #filtered > n then
+        filtered[#filtered] = filtered[#filtered] .. str
+      end
     end
-  end, idrop(n, ifilter(function (str, s, e)
-    if e < s then
-      return false
-    else
-      local s0, e0 = sfind(str, "/+", s)
-      return not s0 or not (s0 == s and e0 == e)
-    end
-  end, ssplit(fp, "/+", keep_sep and "right" or "left"))))
+  end
+  if n >= #filtered then
+    return nil
+  end
+  local result = {}
+  for i = n + 1, #filtered do
+    result[#result + 1] = filtered[i]
+  end
+  return acat(result, "")
 end
 
 local function dir (fp)
@@ -331,55 +332,69 @@ local function walk (fp, prune, leaves)
 end
 
 local function files (fp, recurse)
-  return ifilter(function (_, m)
-    return m == "file"
-  end, walk(fp, not recurse and function (_, m)
+  local w = walk(fp, not recurse and function (_, m)
     return m == "directory"
-  end))
+  end)
+  return function ()
+    while true do
+      local name, mode = w()
+      if not name then return end
+      if mode == "file" then
+        return name, mode
+      end
+    end
+  end
 end
 
 local function dirs (fp, recurse, leaves)
-  return ifilter(function (_, m)
-    return m == "directory"
-  end, walk(fp, not recurse and function (_, m)
+  local w = walk(fp, not recurse and function (_, m)
     return m == "directory" and "keep"
-  end, leaves))
+  end, leaves)
+  return function ()
+    while true do
+      local name, mode = w()
+      if not name then return end
+      if mode == "directory" then
+        return name, mode
+      end
+    end
+  end
 end
 
 local function isdir (fp)
-  return vtup(function (ok, mode, code, ...)
-    if (not ok and code == ENOENT) or (ok and mode ~= "directory") then
+  return (function (ok, m, code, ...)
+    if (not ok and code == ENOENT) or (ok and m ~= "directory") then
       return false
     elseif not ok then
-      return error(mode, code, ...)
+      return error(m, code, ...)
     else
       return true
     end
-  end, pcall(mode, fp))
+  end)(pcall(mode, fp))
 end
 
 local function isfile (fp)
-  return vtup(function (ok, mode, code, ...)
-    if (not ok and code == ENOENT) or (ok and mode ~= "file") then
+  return (function (ok, m, code, ...)
+    if (not ok and code == ENOENT) or (ok and m ~= "file") then
       return false
     elseif not ok then
-      return error(mode, code, ...)
+      return error(m, code, ...)
     else
       return true
     end
-  end, pcall(mode, fp))
+  end)(pcall(mode, fp))
 end
 
 local function exists (fp)
-  return vtup(function (ok, mode, code, ...)
+  return (function (ok, m, code, ...)
     if not ok and code == ENOENT then
       return false
     elseif ok then
-      return true, mode
+      return true, m
     else
-      return error(mode, code, ...)
+      return error(m, code, ...)
     end
-  end, pcall(mode, fp))
+  end)(pcall(mode, fp))
 end
 
 local function mkdirp (fp)
@@ -396,14 +411,12 @@ local function mkdirp (fp)
 end
 
 local function rm (fp, allow_noexist)
-
   allow_noexist = allow_noexist or false
-
-  return vtup(function (ok, err, cd, ...)
+  return (function (ok, e, cd, ...)
     if not ok and (not allow_noexist and cd == ENOENT) then
-      return error(err, cd, ...)
+      return error(e, cd, ...)
     end
-  end, os.remove(fp))
+  end)(os.remove(fp))
 end
 
 local function rmdirs (dir)
@@ -439,18 +452,16 @@ local function runfile (fp, env, nog)
 end
 
 local function pushd (fp, fn, ...)
-
-
-  local cwd = cwd()
+  local cwd0 = cwd()
   chdir(fp)
-  return vtup(function (ok, ...)
-    chdir(cwd)
+  return (function (ok, ...)
+    chdir(cwd0)
     if not ok then
       error(...)
     else
       return ...
     end
-  end, pcall(fn, ...))
+  end)(pcall(fn, ...))
 end
 
 return tmerge({

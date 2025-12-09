@@ -1,12 +1,12 @@
 local env = {
   name = "santoku-fs",
-  version = "0.0.37-1",
+  version = "0.0.38-1",
   variable_prefix = "TK_FS",
   license = "MIT",
   public = true,
   dependencies = {
     "lua >= 5.1",
-    "santoku >= 0.0.303-1",
+    "santoku >= 0.0.308-1",
   },
 }
 

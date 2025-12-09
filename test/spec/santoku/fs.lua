@@ -6,9 +6,10 @@ local assert = err.assert
 local pcall = err.pcall
 
 local arr = require("santoku.array")
-local apack = arr.pack
 local apush = arr.push
 local asort = arr.sort
+local apull = arr.pull
+local apullmap = arr.pullmap
 
 local validate = require("santoku.validate")
 local eq = validate.isequal
@@ -20,17 +21,12 @@ local teq = tbl.equals
 local fs = require("santoku.fs")
 local fopen = fs.open
 
-local iter = require("santoku.iter")
-local icollect = iter.collect
-local imap = iter.map
-
 local str = require("santoku.string")
-local ssub = str.sub
 local scmp = str.compare
 
 test("chunk basic", function ()
   assert(teq({ "line 1\nl", "ine 2\nli", "ne 3\nlin", "e 4\n" },
-    icollect(fs.chunks(fopen("test/res/fs.tst1.txt"), nil, 8))))
+    apull(fs.chunks(fopen("test/res/fs.tst1.txt"), nil, 8))))
 end)
 
 test("chunk delims", function ()
@@ -39,13 +35,13 @@ test("chunk delims", function ()
       { "line 1\nline 2\nli", 8, 14 },
       { "line 3\nline 4\n", 1, 7 },
       { "line 3\nline 4\n", 8, 14 }, }
-  local actual = icollect(imap(apack, fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 16)))
+  local actual = apullmap(fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 16), function (...) return {...} end)
   assert(teq(expected, actual))
 end)
 
 test("chunk delim doesnt fit", function ()
   assert(teq({ false, "chunk doesn't fit", 0, 5},
-    { pcall(icollect, fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 5)) }))
+    { pcall(apull, fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 5)) }))
 end)
 
 test("join", function ()
@@ -87,22 +83,22 @@ end)
 
 test("splitexts", function ()
   assert(teq({ "tar", "gz"},
-    icollect(imap(ssub, fs.splitexts("/this/test.tar.gz")))))
+    apull(fs.splitexts("/this/test.tar.gz"))))
   assert(teq({ ".tar", ".gz"},
-    icollect(imap(ssub, fs.splitexts("/this/test.tar.gz", true)))))
+    apull(fs.splitexts("/this/test.tar.gz", true))))
 end)
 
 test("splitparts", function ()
   assert(teq({ "this", "is", "a", "test" },
-    icollect(imap(ssub, fs.splitparts("/this//is/a/test//")))))
-  assert(teq({ "/this", "//is", "/a", "/test", "//"},
-    icollect(imap(ssub, fs.splitparts("/this//is/a/test//", "right")))))
-  assert(teq({ "this", "//is", "/a", "/test", "//" },
-    icollect(imap(ssub, fs.splitparts("this//is/a/test//", "right")))))
+    apull(fs.splitparts("/this//is/a/test//"))))
+  assert(teq({ "/this", "//is", "/a", "/test" },
+    apull(fs.splitparts("/this//is/a/test//", "right"))))
+  assert(teq({ "this", "//is", "/a", "/test" },
+    apull(fs.splitparts("this//is/a/test//", "right"))))
   assert(teq({ "/", "this//", "is/", "a/", "test//" },
-    icollect(imap(ssub, fs.splitparts("/this//is/a/test//", "left")))))
+    apull(fs.splitparts("/this//is/a/test//", "left"))))
   assert(teq({ "this//", "is/", "a/", "test//" },
-    icollect(imap(ssub, fs.splitparts("this//is/a/test//", "left")))))
+    apull(fs.splitparts("this//is/a/test//", "left"))))
 end)
 
 test("stripparts", function ()
@@ -139,11 +135,11 @@ end)
 
 test("dir", function ()
   assert(teq({ ".", "..", "fs", "fs.tst1.txt", "fs.tst2.txt", "fs.tst3.txt" },
-    asort(icollect(fs.dir("test/res")))))
+    asort(apull(fs.dir("test/res")))))
 end)
 
 test("walk", function ()
-  assert(teq(asort(icollect(imap(apack, fs.walk("test/res"))), function (a, b)
+  assert(teq(asort(apullmap(fs.walk("test/res"), function (...) return {...} end), function (a, b)
     return scmp(a[1], b[1])
   end), {
     { "test/res/fs", "directory" },
@@ -160,7 +156,7 @@ test("walk", function ()
 end)
 
 test("files", function ()
-  assert(teq(asort(icollect(fs.files("test/res", true)), scmp), {
+  assert(teq(asort(apull(fs.files("test/res", true)), scmp), {
     "test/res/fs/a/a.txt",
     "test/res/fs/a/b.txt",
     "test/res/fs/b/a.txt",
@@ -169,7 +165,7 @@ test("files", function ()
     "test/res/fs.tst2.txt",
     "test/res/fs.tst3.txt",
   }))
-  assert(teq(asort(icollect(fs.files("test/res", false)), scmp), {
+  assert(teq(asort(apull(fs.files("test/res", false)), scmp), {
     "test/res/fs.tst1.txt",
     "test/res/fs.tst2.txt",
     "test/res/fs.tst3.txt",
@@ -177,12 +173,12 @@ test("files", function ()
 end)
 
 test("dirs", function ()
-  assert(teq(icollect(fs.dirs("test/res", true)), {
+  assert(teq(apull(fs.dirs("test/res", true)), {
     "test/res/fs",
     "test/res/fs/a",
     "test/res/fs/b",
   }))
-  assert(teq(icollect(fs.dirs("test/res", false)), {
+  assert(teq(apull(fs.dirs("test/res", false)), {
     "test/res/fs",
   }))
 end)
