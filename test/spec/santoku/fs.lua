@@ -201,6 +201,20 @@ test("isfile", function ()
   assert(teq({ true }, { fs.isfile("run.sh") }))
 end)
 
+test("mkdirp", function ()
+  local testdir = "test/res/mkdirp_test/nested/deep/path"
+  if fs.exists("test/res/mkdirp_test") then
+    fs.rmdirs("test/res/mkdirp_test")
+  end
+  fs.mkdirp(testdir)
+  assert(fs.isdir(testdir))
+  assert(fs.isdir("test/res/mkdirp_test/nested/deep"))
+  assert(fs.isdir("test/res/mkdirp_test/nested"))
+  assert(fs.isdir("test/res/mkdirp_test"))
+  fs.rmdirs("test/res/mkdirp_test")
+  assert(not fs.exists("test/res/mkdirp_test"))
+end)
+
 
 
 

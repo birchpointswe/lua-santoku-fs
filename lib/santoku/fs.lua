@@ -316,6 +316,7 @@ local function walk (fp, prune, leaves)
             stack[#stack + 1] = name
             modes[#stack] = mode
             stack[#stack + 1] = dir(name)
+            names[#stack] = name
             return helper()
           end
         elseif shouldprune == "keep" then
@@ -399,13 +400,12 @@ end
 
 local function mkdirp (fp)
 
-  local s0 = nil
-  for str, s, e in splitparts(fp, "right") do
-    s0 = s0 or s
-    local dir = ssub(str, s0, e)
-    local ok, err, cd = pcall(mkdir, dir)
+  local accum = ""
+  for part in splitparts(fp, "right") do
+    accum = accum .. part
+    local ok, err, cd = pcall(mkdir, accum)
     if not ok and cd ~= EEXIST then
-      error(err, cd, dir)
+      error(err, cd, accum)
     end
   end
 end
@@ -421,9 +421,10 @@ end
 
 local function rmdirs (dir)
 
-  for _, d in dirs(dir, true, true) do
+  for d in dirs(dir, true, true) do
     rmdir(d)
   end
+  rmdir(dir)
 end
 
 
