@@ -10,6 +10,7 @@ local apush = arr.push
 local asort = arr.sort
 local apull = arr.pull
 local apullmap = arr.pullmap
+local apack = arr.pack
 
 local validate = require("santoku.validate")
 local eq = validate.isequal
@@ -35,7 +36,7 @@ test("chunk delims", function ()
       { "line 1\nline 2\nli", 8, 14 },
       { "line 3\nline 4\n", 1, 7 },
       { "line 3\nline 4\n", 8, 14 }, }
-  local actual = apullmap(fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 16), function (...) return {...} end)
+  local actual = apullmap(fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 16), apack)
   assert(teq(expected, actual))
 end)
 
@@ -139,7 +140,7 @@ test("dir", function ()
 end)
 
 test("walk", function ()
-  assert(teq(asort(apullmap(fs.walk("test/res"), function (...) return {...} end), function (a, b)
+  assert(teq(asort(apullmap(fs.walk("test/res"), apack), function (a, b)
     return scmp(a[1], b[1])
   end), {
     { "test/res/fs", "directory" },
