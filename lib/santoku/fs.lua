@@ -332,9 +332,14 @@ local function walk (fp, prune, leaves)
 
 end
 
-local function files (fp, recurse)
-  local w = walk(fp, not recurse and function (_, m)
-    return m == "directory"
+local function files (fp, recurse, prune)
+  local w = walk(fp, function (name, m)
+    if prune and prune(name, m) then
+      return true
+    end
+    if not recurse and m == "directory" then
+      return true
+    end
   end)
   return function ()
     while true do
