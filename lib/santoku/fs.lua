@@ -52,6 +52,7 @@ local mkdir = posix.mkdir
 local rmdir = posix.rmdir
 local mode = posix.mode
 local diropen = posix.diropen
+local dirclose = posix.dirclose
 local dirent = posix.dirent
 local next_chunk = posix.next_chunk
 
@@ -258,31 +259,24 @@ local function stripparts (fp, n, keep_sep)
 end
 
 local function dir (fp)
-
   local d = diropen(fp)
-  return function ()
+  local function iter ()
     local f, m = dirent(d)
     if f then
       return f, m
     end
   end
+  return iter, d
 end
 
-
-
-
-
-
 local function walk (fp, prune, leaves)
-
-
   prune = prune or noop
-
   leaves = leaves or false
 
-
   local names = { fp }
-  local stack = { dir(fp) }
+  local iter, handle = dir(fp)
+  local stack = { iter }
+  local handles = { handle }
   local modes = {}
 
   local function helper ()
@@ -290,37 +284,43 @@ local function walk (fp, prune, leaves)
     if not ents then
       return
     elseif type(ents) == "string" then
-      local mode = modes[#stack]
+      local m = modes[#stack]
       modes[#stack] = nil
       stack[#stack] = nil
-      return ents, mode
+      return ents, m
     end
-    local name, mode = ents()
+    local name, m = ents()
     if not name then
+      dirclose(handles[#stack])
+      handles[#stack] = nil
       stack[#stack] = nil
       return helper()
     elseif name == ".." or name == "." then
       return helper()
     else
       name = join(names[#stack], name)
-      if mode == "file" then
-        return name, mode
-      elseif mode == "directory" then
-        local shouldprune = prune(name, mode)
+      if m == "file" then
+        return name, m
+      elseif m == "directory" then
+        local shouldprune = prune(name, m)
         if not shouldprune then
           if not leaves then
-            stack[#stack + 1] = dir(name)
+            local it, h = dir(name)
+            stack[#stack + 1] = it
+            handles[#stack] = h
             names[#stack] = name
-            return name, mode
+            return name, m
           else
             stack[#stack + 1] = name
-            modes[#stack] = mode
-            stack[#stack + 1] = dir(name)
+            modes[#stack] = m
+            local it, h = dir(name)
+            stack[#stack + 1] = it
+            handles[#stack] = h
             names[#stack] = name
             return helper()
           end
         elseif shouldprune == "keep" then
-          return name, mode
+          return name, m
         else
           return helper()
         end
