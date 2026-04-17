@@ -1,16 +1,16 @@
 local env = {
   name = "santoku-fs",
-  version = "0.0.43-1",
+  version = "0.0.44-1",
   variable_prefix = "TK_FS",
   license = "MIT",
   public = true,
   dependencies = {
-    "lua >= 5.1",
+    "lua == 5.1",
     "santoku >= 0.0.320-1",
   },
 }
 
-env.homepage = "https://github.com/treadwelllane/lua-" .. env.name
+env.homepage = "https://github.com/birchpointswe/lua-" .. env.name
 env.tarball = env.name .. "-" .. env.version .. ".tar.gz"
 env.download = env.homepage .. "/releases/download/" .. env.version .. "/" .. env.tarball
 
