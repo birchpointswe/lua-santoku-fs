@@ -215,6 +215,41 @@ test("mkdirp", function ()
   assert(not fs.exists("test/res/mkdirp_test"))
 end)
 
+test("hardlink", function ()
+  local src = "test/res/hl_src.txt"
+  local dst = "test/res/hl_dst.txt"
+  fs.rm(src, true)
+  fs.rm(dst, true)
+  fs.writefile(src, "hello")
+  local ok, _, code = pcall(fs.hardlink, src, dst)
+  if not ok and (code == 1 or code == 13) then
+    fs.rm(src, true)
+    return
+  end
+  assert(ok)
+  assert(fs.isfile(dst))
+  assert(eq("hello", fs.readfile(dst)))
+  fs.writefile(src, "changed")
+  assert(eq("changed", fs.readfile(dst)))
+  fs.rm(src)
+  fs.rm(dst)
+end)
+
+test("symlink", function ()
+  local src = "test/res/sl_src.txt"
+  local dst = "test/res/sl_dst.txt"
+  fs.rm(src, true)
+  fs.rm(dst, true)
+  fs.writefile(src, "world")
+  fs.symlink("sl_src.txt", dst)
+  assert(eq("world", fs.readfile(dst)))
+  fs.rm(dst)
+  fs.symlink("sl_missing.txt", dst)
+  assert(not fs.exists(dst))
+  fs.rm(dst)
+  fs.rm(src)
+end)
+
 
 
 

@@ -362,10 +362,32 @@ int tk_fs_posix_mode (lua_State *L)
   return 1;
 }
 
+int tk_fs_posix_hardlink (lua_State *L)
+{
+  lua_settop(L, 2);
+  const char *oldpath = luaL_checkstring(L, 1);
+  const char *newpath = luaL_checkstring(L, 2);
+  if (link(oldpath, newpath) == -1)
+    return tk_fs_posix_err(L, errno);
+  return 0;
+}
+
+int tk_fs_posix_symlink (lua_State *L)
+{
+  lua_settop(L, 2);
+  const char *target = luaL_checkstring(L, 1);
+  const char *linkpath = luaL_checkstring(L, 2);
+  if (symlink(target, linkpath) == -1)
+    return tk_fs_posix_err(L, errno);
+  return 0;
+}
+
 luaL_Reg tk_fs_posix_fns[] =
 {
   { "next_chunk", tk_fs_posix_next_chunk },
   { "mode", tk_fs_posix_mode },
+  { "hardlink", tk_fs_posix_hardlink },
+  { "symlink", tk_fs_posix_symlink },
   { "touch", tk_fs_posix_touch },
   { "absolute", tk_fs_posix_absolute },
   { "tmpfile", tk_fs_posix_tmpfile },
