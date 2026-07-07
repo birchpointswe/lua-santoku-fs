@@ -110,33 +110,62 @@ test("stripparts", function ()
   assert(isnil(fs.stripparts("/home/user/a/b/c.txt", 10)))
 end)
 
+local function clean_tmp (dir)
+  if not fs.exists(dir) then
+    return
+  end
+  for fp, m in fs.walk(dir) do
+    if m == "file" then
+      fs.rm(fp, true)
+    end
+  end
+  fs.rmdirs(dir)
+end
+
+local function make_tmp (dir)
+  clean_tmp(dir)
+  fs.mkdirp(dir .. "/sub")
+  fs.writefile(dir .. "/a.txt", "a")
+  fs.writefile(dir .. "/b.txt", "b")
+end
+
 test("diropen/dirent/dirclose", function ()
+  local dir = "test/res/dirent"
+  make_tmp(dir)
   local ents = {}
-  local d = fs.diropen("test/res")
+  local d = fs.diropen(dir)
   while true do
     local f, m = fs.dirent(d)
     if not f then
       break
     end
-    apush(ents, { f, m })
+    if f ~= "." and f ~= ".." then
+      apush(ents, { f, m })
+    end
   end
+  fs.dirclose(d)
   asort(ents, function (a, b)
-    return str.compare(a[1], b[1])
+    return a[1] < b[1]
   end)
   assert(teq(ents, {
-    { ".", "directory" },
-    { "..", "directory" },
-    { "fs", "directory" },
-    { "fs.tst1.txt", "file" },
-    { "fs.tst2.txt", "file" },
-    { "fs.tst3.txt", "file" },
+    { "a.txt", "file" },
+    { "b.txt", "file" },
+    { "sub", "directory" },
   }))
-  fs.dirclose(d)
+  clean_tmp(dir)
 end)
 
 test("dir", function ()
-  assert(teq({ ".", "..", "fs", "fs.tst1.txt", "fs.tst2.txt", "fs.tst3.txt" },
-    asort(icollect(fs.dir("test/res")))))
+  local dir = "test/res/dirlist"
+  make_tmp(dir)
+  local got = {}
+  for _, f in ipairs(icollect(fs.dir(dir))) do
+    if f ~= "." and f ~= ".." then
+      apush(got, f)
+    end
+  end
+  assert(teq({ "a.txt", "b.txt", "sub" }, asort(got)))
+  clean_tmp(dir)
 end)
 
 test("walk", function ()
@@ -215,40 +244,46 @@ test("mkdirp", function ()
   assert(not fs.exists("test/res/mkdirp_test"))
 end)
 
-test("hardlink", function ()
-  local src = "test/res/hl_src.txt"
-  local dst = "test/res/hl_dst.txt"
-  fs.rm(src, true)
-  fs.rm(dst, true)
-  fs.writefile(src, "hello")
-  local ok, _, code = pcall(fs.hardlink, src, dst)
-  if not ok and (code == 1 or code == 13) then
-    fs.rm(src, true)
-    return
-  end
-  assert(ok)
-  assert(fs.isfile(dst))
-  assert(eq("hello", fs.readfile(dst)))
-  fs.writefile(src, "changed")
-  assert(eq("changed", fs.readfile(dst)))
-  fs.rm(src)
-  fs.rm(dst)
-end)
 
-test("symlink", function ()
-  local src = "test/res/sl_src.txt"
-  local dst = "test/res/sl_dst.txt"
-  fs.rm(src, true)
-  fs.rm(dst, true)
-  fs.writefile(src, "world")
-  fs.symlink("sl_src.txt", dst)
-  assert(eq("world", fs.readfile(dst)))
-  fs.rm(dst)
-  fs.symlink("sl_missing.txt", dst)
-  assert(not fs.exists(dst))
-  fs.rm(dst)
-  fs.rm(src)
-end)
+
+if fs.hardlink then
+  test("hardlink", function ()
+    local src = "test/res/hl_src.txt"
+    local dst = "test/res/hl_dst.txt"
+    fs.rm(src, true)
+    fs.rm(dst, true)
+    fs.writefile(src, "hello")
+    local ok, _, code = pcall(fs.hardlink, src, dst)
+    if not ok and (code == 1 or code == 13) then
+      fs.rm(src, true)
+      return
+    end
+    assert(ok)
+    assert(fs.isfile(dst))
+    assert(eq("hello", fs.readfile(dst)))
+    fs.writefile(src, "changed")
+    assert(eq("changed", fs.readfile(dst)))
+    fs.rm(src)
+    fs.rm(dst)
+  end)
+end
+
+if fs.symlink then
+  test("symlink", function ()
+    local src = "test/res/sl_src.txt"
+    local dst = "test/res/sl_dst.txt"
+    fs.rm(src, true)
+    fs.rm(dst, true)
+    fs.writefile(src, "world")
+    fs.symlink("sl_src.txt", dst)
+    assert(eq("world", fs.readfile(dst)))
+    fs.rm(dst)
+    fs.symlink("sl_missing.txt", dst)
+    assert(not fs.exists(dst))
+    fs.rm(dst)
+    fs.rm(src)
+  end)
+end
 
 
 

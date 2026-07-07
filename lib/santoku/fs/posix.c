@@ -362,6 +362,7 @@ int tk_fs_posix_mode (lua_State *L)
   return 1;
 }
 
+#ifndef __EMSCRIPTEN__
 int tk_fs_posix_hardlink (lua_State *L)
 {
   lua_settop(L, 2);
@@ -381,13 +382,16 @@ int tk_fs_posix_symlink (lua_State *L)
     return tk_fs_posix_err(L, errno);
   return 0;
 }
+#endif
 
 luaL_Reg tk_fs_posix_fns[] =
 {
   { "next_chunk", tk_fs_posix_next_chunk },
   { "mode", tk_fs_posix_mode },
+#ifndef __EMSCRIPTEN__
   { "hardlink", tk_fs_posix_hardlink },
   { "symlink", tk_fs_posix_symlink },
+#endif
   { "touch", tk_fs_posix_touch },
   { "absolute", tk_fs_posix_absolute },
   { "tmpfile", tk_fs_posix_tmpfile },
