@@ -14,7 +14,6 @@
 
 #define TK_FS_DIR_MT "santoku_fs_dir"
 
-
 void tk_fs_callmod (lua_State *L, int nargs, int nret, const char *smod, const char *sfn)
 {
   lua_getglobal(L, "require");
@@ -103,8 +102,6 @@ int tk_fs_posix_dirent (lua_State *L)
   return 2;
 }
 
-
-
 int tk_fs_posix_absolute (lua_State *L)
 {
   lua_settop(L, 1);
@@ -172,6 +169,8 @@ int tk_fs_posix_next_chunk (lua_State *L)
   const char *delims = luaL_optstring(L, 2, NULL);
 
   lua_Integer chunk_max = luaL_optinteger(L, 3, BUFSIZ);
+  if (chunk_max <= 0)
+    return luaL_error(L, "next_chunk: chunk_max must be positive");
 
   size_t chunk_size;
   const char *chunk = luaL_optlstring(L, 4, NULL, &chunk_size);
@@ -180,6 +179,11 @@ int tk_fs_posix_next_chunk (lua_State *L)
   lua_Integer segment_end = luaL_optinteger(L, 6, 0);
   lua_Integer delim_start = luaL_optinteger(L, 7, 0);
   lua_Integer delim_end = luaL_optinteger(L, 8, 0);
+
+  if (segment_start < 0 || segment_end < 0 || delim_start < 0 || delim_end < 0 ||
+      (size_t) segment_start > chunk_size || (size_t) segment_end > chunk_size ||
+      (size_t) delim_start > chunk_size || (size_t) delim_end > chunk_size)
+    return luaL_error(L, "next_chunk: position out of range");
 
   while (1) {
 
