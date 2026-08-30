@@ -5,7 +5,6 @@ local checkok = err.checkok
 local error = err.error
 local pcall = err.pcall
 
-
 local lua = require("santoku.lua")
 local loadstring = lua.loadstring
 
@@ -14,13 +13,6 @@ local pushindex = inherit.pushindex
 
 local validate = require("santoku.validate")
 local isfile = validate.isfile
-
-
-
-
-
-
-
 
 local str = require("santoku.string")
 local ssplit = str.splits
@@ -60,9 +52,6 @@ local function open (fpfh, flag)
   if isfile(fpfh) then
     return fpfh, true
   else
-
-
-
 
     return _open(fpfh, flag), false
   end
@@ -229,6 +218,26 @@ local function splitexts (fp, keep_dots)
     if i > #parts then return nil end
     return parts[i]
   end
+end
+
+local function relative (fp, base)
+  if type(fp) ~= "string" or fp == "" then
+    return fp
+  end
+  base = base or cwd()
+  if type(base) ~= "string" or base == "" then
+    return fp
+  end
+  if base:sub(-1) ~= "/" then
+    base = base .. "/"
+  end
+  if fp == base:sub(1, -2) then
+    return "."
+  end
+  if fp:sub(1, #base) == base then
+    return fp:sub(#base + 1)
+  end
+  return fp
 end
 
 local function stripparts (fp, n, keep_sep)
@@ -432,7 +441,6 @@ local function rmdirs (dir)
   rmdir(dir)
 end
 
-
 local function writefile (fp, str, flag)
   return with(fp, flag or "w", function (fh)
     write(fh, str)
@@ -504,6 +512,7 @@ return tmerge({
   splitparts = splitparts,
   splitexts = splitexts,
   stripparts = stripparts,
+  relative = relative,
   chunks = chunks,
   dir = dir,
   walk = walk,
