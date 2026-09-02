@@ -61,13 +61,6 @@ test("basename", function ()
   assert(isnil(fs.basename("/home/user/")))
 end)
 
-
-
-
-
-
-
-
 test("extension", function ()
   assert(eq(".tar.gz", fs.extensions("something.tar.gz")))
   assert(eq(".gz", fs.extension("something.tar.gz")))
@@ -203,12 +196,12 @@ test("files", function ()
 end)
 
 test("dirs", function ()
-  assert(teq(icollect(fs.dirs("test/res", true)), {
+  assert(teq(asort(icollect(fs.dirs("test/res", true)), scmp), {
     "test/res/fs",
     "test/res/fs/a",
     "test/res/fs/b",
   }))
-  assert(teq(icollect(fs.dirs("test/res", false)), {
+  assert(teq(asort(icollect(fs.dirs("test/res", false)), scmp), {
     "test/res/fs",
   }))
 end)
@@ -243,8 +236,6 @@ test("mkdirp", function ()
   fs.rmdirs("test/res/mkdirp_test")
   assert(not fs.exists("test/res/mkdirp_test"))
 end)
-
-
 
 if fs.hardlink then
   test("hardlink", function ()
@@ -284,18 +275,4 @@ if fs.symlink then
     fs.rm(src)
   end)
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
