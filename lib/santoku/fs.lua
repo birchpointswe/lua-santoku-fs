@@ -28,12 +28,22 @@ local tmerge = tbl.merge
 local arr = require("santoku.array")
 local acat = arr.concat
 
+local envvar = require("santoku.env").var
+
 local _open = wrapnil(io.open)
 local stdout = io.stdout
 local stderr = io.stderr
 local stdin = io.stdin
-local tmpname = wrapnil(os.tmpname)
 local rename = wrapnil(os.rename)
+
+local tmpdir = envvar("TMPDIR", "/tmp")
+local tmpsalt = str.match(tostring({}), "0x(%x+)")
+local tmpn = 0
+
+local function tmpname ()
+  tmpn = tmpn + 1
+  return tmpdir .. "/lua_" .. tmpsalt .. "_" .. tmpn
+end
 
 local posix = require("santoku.fs.posix")
 local chdir = posix.cd

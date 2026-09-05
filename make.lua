@@ -1,6 +1,6 @@
 local env = {
   name = "santoku-fs",
-  version = "2.1.2-1",
+  version = "2.1.3-1",
   variable_prefix = "TK_FS",
   license = "MIT",
   public = true,
