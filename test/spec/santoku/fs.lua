@@ -108,7 +108,7 @@ local function clean_tmp (dir)
     return
   end
   for fp, m in fs.walk(dir) do
-    if m == "file" then
+    if m ~= "directory" then
       fs.rm(fp, true)
     end
   end
@@ -205,6 +205,58 @@ test("dirs", function ()
     "test/res/fs",
   }))
 end)
+
+if fs.symlink then
+
+  local function make_link_tmp (dir)
+    clean_tmp(dir)
+    fs.mkdirp(dir .. "/sub")
+    fs.symlink("a.txt", dir .. "/aaa_link")
+    fs.symlink(".", dir .. "/aaa_loop")
+    fs.writefile(dir .. "/a.txt", "a")
+    fs.writefile(dir .. "/b.txt", "b")
+    fs.writefile(dir .. "/c.txt", "c")
+    fs.writefile(dir .. "/sub/d.txt", "d")
+  end
+
+  test("walk yields non-directory entries without truncating", function ()
+    local dir = "test/tmp/links"
+    make_link_tmp(dir)
+    assert(teq(asort(imap(apack, fs.walk(dir)), function (a, b)
+      return a[1] < b[1]
+    end), {
+      { dir .. "/a.txt", "file" },
+      { dir .. "/aaa_link", "link" },
+      { dir .. "/aaa_loop", "link" },
+      { dir .. "/b.txt", "file" },
+      { dir .. "/c.txt", "file" },
+      { dir .. "/sub", "directory" },
+      { dir .. "/sub/d.txt", "file" },
+    }))
+    clean_tmp("test/tmp")
+  end)
+
+  test("files skips symlinks and yields every regular file", function ()
+    local dir = "test/tmp/links"
+    make_link_tmp(dir)
+    assert(teq(asort(icollect(fs.files(dir, true))), {
+      dir .. "/a.txt",
+      dir .. "/b.txt",
+      dir .. "/c.txt",
+      dir .. "/sub/d.txt",
+    }))
+    assert(teq(asort(icollect(fs.files(dir, false))), {
+      dir .. "/a.txt",
+      dir .. "/b.txt",
+      dir .. "/c.txt",
+    }))
+    assert(teq(asort(icollect(fs.dirs(dir, true))), {
+      dir .. "/sub",
+    }))
+    clean_tmp("test/tmp")
+  end)
+
+end
 
 test("exists", function ()
   assert(teq({ true, "directory" }, { fs.exists("test/spec") } ))

@@ -58,6 +58,27 @@ int tk_fs_posix_diropen (lua_State *L)
   return 1;
 }
 
+const char *tk_fs_posix_typename (mode_t m)
+{
+  if (S_ISBLK(m)) {
+    return "block";
+  } else if (S_ISCHR(m)) {
+    return "character";
+  } else if (S_ISDIR(m)) {
+    return "directory";
+  } else if (S_ISFIFO(m)) {
+    return "fifo";
+  } else if (S_ISLNK(m)) {
+    return "link";
+  } else if (S_ISREG(m)) {
+    return "file";
+  } else if (S_ISSOCK(m)) {
+    return "socket";
+  } else {
+    return NULL;
+  }
+}
+
 int tk_fs_posix_dirent (lua_State *L)
 {
   lua_settop(L, 1);
@@ -70,35 +91,45 @@ int tk_fs_posix_dirent (lua_State *L)
     return tk_fs_posix_err(L, errno);
   if (ent == NULL && errno == 0)
     return tk_fs_posix_dirclose(L);
-  lua_pushstring(L, ent->d_name);
+  const char *type;
   switch (ent->d_type) {
     case DT_BLK:
-      lua_pushstring(L, "block");
+      type = "block";
       break;
     case DT_CHR:
-      lua_pushstring(L, "character");
+      type = "character";
       break;
     case DT_DIR:
-      lua_pushstring(L, "directory");
+      type = "directory";
       break;
     case DT_FIFO:
-      lua_pushstring(L, "fifo");
+      type = "fifo";
       break;
     case DT_LNK:
-      lua_pushstring(L, "link");
+      type = "link";
       break;
     case DT_REG:
-      lua_pushstring(L, "file");
+      type = "file";
       break;
     case DT_SOCK:
-      lua_pushstring(L, "socket");
+      type = "socket";
       break;
-    default:
-      lua_pushstring(L, "unknown diretory entry type");
-      lua_pushinteger(L, ent->d_type);
-      tk_fs_callmod(L, 2, 0, "santoku.error", "error");
-      return 0;
+    default: {
+      struct stat statbuf;
+      if (fstatat(dirfd(*dirp), ent->d_name, &statbuf, AT_SYMLINK_NOFOLLOW) == -1)
+        return tk_fs_posix_err(L, errno);
+      type = tk_fs_posix_typename(statbuf.st_mode);
+      if (type == NULL) {
+        lua_pushstring(L, "unknown directory entry type");
+        lua_pushinteger(L, statbuf.st_mode);
+        tk_fs_callmod(L, 2, 0, "santoku.error", "error");
+        return 0;
+      }
+      break;
+    }
   }
+  lua_pushstring(L, ent->d_name);
+  lua_pushstring(L, type);
   return 2;
 }
 
@@ -343,26 +374,14 @@ int tk_fs_posix_mode (lua_State *L)
   int rc = stat(path, &statbuf);
   if (rc == -1)
     return tk_fs_posix_err(L, errno);
-  int m = statbuf.st_mode;
-  if (S_ISBLK(m)) {
-    lua_pushstring(L, "block");
-  } else if (S_ISCHR(m)) {
-    lua_pushstring(L, "character");
-  } else if (S_ISDIR(m)) {
-    lua_pushstring(L, "directory");
-  } else if (S_ISFIFO(m)) {
-    lua_pushstring(L, "fifo");
-  } else if (S_ISLNK(m)) {
-    lua_pushstring(L, "link");
-  } else if (S_ISREG(m)) {
-    lua_pushstring(L, "file");
-  } else if (S_ISSOCK(m)) {
-    lua_pushstring(L, "socket");
-  } else {
+  const char *type = tk_fs_posix_typename(statbuf.st_mode);
+  if (type == NULL) {
     lua_pushstring(L, "unknown file type");
-    lua_pushinteger(L, m);
+    lua_pushinteger(L, statbuf.st_mode);
     tk_fs_callmod(L, 2, 0, "santoku.error", "error");
+    return 0;
   }
+  lua_pushstring(L, type);
   return 1;
 }
 

@@ -318,9 +318,9 @@ local function walk (fp, prune, leaves)
       return helper()
     else
       name = join(names[#stack], name)
-      if m == "file" then
+      if m ~= "directory" then
         return name, m
-      elseif m == "directory" then
+      else
         local shouldprune = prune(name, m)
         if not shouldprune then
           if not leaves then
