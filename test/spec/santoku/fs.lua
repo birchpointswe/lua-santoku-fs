@@ -11,6 +11,7 @@ local asort = arr.sort
 local icollect = arr.icollect
 local imap = arr.imap
 local apack = arr.pack
+local acat = arr.concat
 
 local validate = require("santoku.validate")
 local eq = validate.isequal
@@ -24,6 +25,61 @@ local fopen = fs.open
 
 local str = require("santoku.string")
 local scmp = str.compare
+local ssub = str.sub
+local smatches = str.matches
+
+local function clean_tmp (dir)
+  if not fs.exists(dir) then
+    return
+  end
+  for fp, m in fs.walk(dir) do
+    if m ~= "directory" then
+      fs.rm(fp, true)
+    end
+  end
+  fs.rmdirs(dir)
+end
+
+local function make_tmp (dir)
+  clean_tmp(dir)
+  fs.mkdirp(dir .. "/sub")
+  fs.writefile(dir .. "/a.txt", "a")
+  fs.writefile(dir .. "/b.txt", "b")
+end
+
+local function write_chunk_tmp (content)
+  local dir = "test/tmp/chunks"
+  clean_tmp(dir)
+  fs.mkdirp(dir)
+  local fp = dir .. "/data.txt"
+  fs.writefile(fp, content)
+  return fp
+end
+
+local function segments (content, delims, size)
+  local fp = write_chunk_tmp(content)
+  local out = {}
+  for chunk, s, e in fs.chunks(fp, delims, size, true) do
+    apush(out, ssub(chunk, s, e))
+  end
+  clean_tmp("test/tmp")
+  return out
+end
+
+local function blocks (content, size)
+  local fp = write_chunk_tmp(content)
+  local out = icollect(fs.chunks(fp, nil, size))
+  clean_tmp("test/tmp")
+  return out
+end
+
+local function repeated (n, s)
+  local t = {}
+  for i = 1, n do
+    t[i] = s
+  end
+  return acat(t, "")
+end
 
 test("chunk basic", function ()
   assert(teq({ "line 1\nl", "ine 2\nli", "ne 3\nlin", "e 4\n" },
@@ -43,6 +99,93 @@ end)
 test("chunk delim doesnt fit", function ()
   assert(teq({ false, "chunk doesn't fit", 0, 5},
     { pcall(icollect, fs.chunks(fopen("test/res/fs.tst1.txt"), "\n", 5)) }))
+end)
+
+test("chunk delim landing on the buffer boundary", function ()
+  assert(teq({ "abc", "def", "ghi" }, segments("abc\ndef\nghi\n", "\n", 8)))
+  assert(teq({ "abc", "def" }, segments("abc\ndef\n", "\n", 4)))
+  assert(teq({ "abc", "def", "ghi" }, segments("abc\ndef\nghi", "\n", 4)))
+end)
+
+test("chunk delim landing on the default buffer boundary", function ()
+  local line = repeated(63, "x")
+  local content = repeated(400, line .. "\n")
+  local expect = {}
+  for i = 1, 400 do
+    expect[i] = line
+  end
+  assert(teq(expect, segments(content, "\n", 8192)))
+end)
+
+test("chunk delim run spanning a refill", function ()
+  assert(teq({ "ab", "cd" }, segments("ab\n\ncd", "\n", 3)))
+  assert(teq({ "ab", "cd" }, segments("ab\n\ncd", "\n", 4)))
+  assert(teq({ "ab", "cd" }, segments("ab\n\n\n\ncd\n", "\n", 3)))
+  assert(teq({}, segments("\n\n\n", "\n", 2)))
+end)
+
+test("chunk leading and repeated delims", function ()
+  assert(teq({ "a", "b" }, segments("\na\n\nb\n", "\n", 16)))
+  assert(teq({ "a", "b" }, segments("\na\n\nb", "\n", 2)))
+end)
+
+test("chunk trailing delim variants", function ()
+  assert(teq({ "abc", "de" }, segments("abc\nde\n", "\n", 16)))
+  assert(teq({ "abc", "de" }, segments("abc\nde", "\n", 16)))
+  assert(teq({ "abcd" }, segments("abcd", "\n", 4)))
+  assert(teq({ "abcd" }, segments("abcd\n", "\n", 5)))
+end)
+
+test("chunk mixed delim sets", function ()
+  assert(teq({ "this", "is", "a", "test" },
+    segments("this|is|a|test\n", "|\n", 6)))
+  assert(teq({ "a", "b", "c" }, segments("a|\n|b\nc", "|\n", 3)))
+end)
+
+test("chunk segmentation is independent of buffer size", function ()
+  local contents = {
+    "",
+    "\n\n\n",
+    "alpha\nbeta\ngamma\n",
+    "alpha\nbeta\ngamma",
+    "\nalpha\n\n\nbeta\n",
+    "a\nbb\nccc\ndddd\n",
+    "one|two\nthree|\nfour",
+    repeated(9, "record|") .. "last",
+  }
+  for i = 1, #contents do
+    local content = contents[i]
+    local expect = smatches(content, "[^|\n]+")
+    local longest = 0
+    for j = 1, #expect do
+      if #expect[j] > longest then
+        longest = #expect[j]
+      end
+    end
+    for size = longest + 1, #content + 3 do
+      assert(teq(expect, segments(content, "|\n", size)),
+        "size " .. size .. " content " .. i)
+    end
+  end
+end)
+
+test("chunk blocks without delims", function ()
+  assert(teq({ "abcd", "efgh" }, blocks("abcdefgh", 4)))
+  assert(teq({ "abcd", "efg" }, blocks("abcdefg", 4)))
+  assert(teq({ "abcd" }, blocks("abcd", 4)))
+  assert(teq({}, blocks("", 4)))
+end)
+
+test("chunk empty file", function ()
+  assert(teq({}, segments("", "\n", 8)))
+  assert(teq({}, blocks("", 8)))
+end)
+
+test("chunk doesnt fit after a refill", function ()
+  local fp = write_chunk_tmp("ab\nabcdefgh")
+  assert(teq({ false, "chunk doesn't fit", 3, 7 },
+    { pcall(icollect, fs.chunks(fp, "\n", 4)) }))
+  clean_tmp("test/tmp")
 end)
 
 test("join", function ()
@@ -102,25 +245,6 @@ test("stripparts", function ()
   assert(isnil(fs.stripparts("/home/user/a/b/c.txt", 5)))
   assert(isnil(fs.stripparts("/home/user/a/b/c.txt", 10)))
 end)
-
-local function clean_tmp (dir)
-  if not fs.exists(dir) then
-    return
-  end
-  for fp, m in fs.walk(dir) do
-    if m ~= "directory" then
-      fs.rm(fp, true)
-    end
-  end
-  fs.rmdirs(dir)
-end
-
-local function make_tmp (dir)
-  clean_tmp(dir)
-  fs.mkdirp(dir .. "/sub")
-  fs.writefile(dir .. "/a.txt", "a")
-  fs.writefile(dir .. "/b.txt", "b")
-end
 
 test("diropen/dirent/dirclose", function ()
   local dir = "test/res/dirent"

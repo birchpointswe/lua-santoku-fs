@@ -239,57 +239,76 @@ int tk_fs_posix_next_chunk (lua_State *L)
           return tk_fs_posix_err(L, errno);
         total_read += bytes_read;
         luaL_addsize(&buf, bytes_read);
-        if (feof(fh) || total_read == chunk_max)
+        if (feof(fh) || total_read == (size_t) chunk_max)
           break;
+      }
+
+      if (!feof(fh)) {
+        int next = fgetc(fh);
+        if (next == EOF && ferror(fh))
+          return tk_fs_posix_err(L, errno);
+        if (next != EOF)
+          ungetc(next, fh);
       }
 
       luaL_pushresult(&buf);
       chunk = luaL_checklstring(L, -1, &chunk_size);
 
+      if (chunk_size == 0)
+        return 0;
+
       segment_start = 1;
-      lua_pushinteger(L, segment_start);
 
     } else {
 
       lua_pushvalue(L, 4);
       segment_start = delim_end + 1;
-      lua_pushinteger(L, segment_start);
 
     }
 
     if (delims == NULL) {
+      lua_pushinteger(L, segment_start);
       lua_pushinteger(L, chunk_size);
       return 3;
     }
 
-    const char *segment_startp = chunk + segment_start;
-    const char *delim_startp = strpbrk(segment_startp, delims);
+    segment_start += strspn(chunk + segment_start - 1, delims);
 
-    if (delim_startp == NULL && feof(fh)) {
-      lua_pushinteger(L, chunk_size);
-      return 3;
-    }
+    const char *delim_startp = strpbrk(chunk + segment_start - 1, delims);
 
-    if (delim_startp == NULL && segment_start == 1) {
-      lua_pushstring(L, "chunk doesn't fit");
-      long pos = ftell(fh);
-      lua_pushinteger(L, pos - chunk_size);
-      lua_pushinteger(L, pos);
-      tk_fs_callmod(L, 3, 0, "santoku.error", "error");
-      return 0;
-    }
+    if (delim_startp == NULL) {
 
-    if (delim_startp == NULL && !feof(fh)) {
-      if (fseek(fh, 0 - (chunk_size - segment_start + 1), SEEK_CUR))
-        tk_fs_posix_err(L, errno);
+      if (feof(fh)) {
+        if ((size_t) segment_start > chunk_size)
+          return 0;
+        lua_pushinteger(L, segment_start);
+        lua_pushinteger(L, chunk_size);
+        return 3;
+      }
+
+      if (segment_start == 1) {
+        lua_pushstring(L, "chunk doesn't fit");
+        long pos = ftell(fh);
+        lua_pushinteger(L, pos - (long) chunk_size);
+        lua_pushinteger(L, pos);
+        tk_fs_callmod(L, 3, 0, "santoku.error", "error");
+        return 0;
+      }
+
+      if (fseek(fh, (long) segment_start - 1 - (long) chunk_size, SEEK_CUR))
+        return tk_fs_posix_err(L, errno);
+
+      lua_pop(L, 1);
       chunk = NULL;
       continue;
+
     }
 
     delim_start = delim_startp - chunk + 1;
     segment_end = delim_start - 1;
     delim_end = delim_start + strspn(delim_startp, delims) - 1;
 
+    lua_pushinteger(L, segment_start);
     lua_pushinteger(L, segment_end);
     lua_pushinteger(L, delim_start);
     lua_pushinteger(L, delim_end);
